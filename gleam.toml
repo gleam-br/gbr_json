@@ -1,0 +1,22 @@
+name = "gbr_json"
+version = "1.0.0"
+description = ""
+licences = ["Apache-2.0"]
+repository = { type = "github", user = "gleam-br", repo = "gbr_json" }
+links = []
+
+[dependencies]
+gbr_shared = { path = "../gbr_shared" }
+
+justin = "~> 1.0"
+glance = "~> 3.0"
+glance_printer = "~> 3.0"
+non_empty_list = "~> 2.2"
+
+gleam_time = "~> 1.7"
+gleam_json = "~> 3.1"
+gleam_crypto = "~> 1.5"
+gleam_stdlib = "~> 0.68"
+
+[dev-dependencies]
+gleeunit = "~> 1.9"

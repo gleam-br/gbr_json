@@ -1,0 +1,320 @@
+////
+////
+////
+
+import gleam/bit_array
+import gleam/bool
+import gleam/crypto
+import gleam/dict
+import gleam/list
+import gleam/option.{type Option, None, Some}
+import gleam/string
+
+import non_empty_list.{NonEmptyList}
+
+import gbr/json/schema/domain as castor
+import gbr/shared/utils
+
+pub type Schema(t) {
+  Named(String)
+  Primitive(Primitive)
+  Array(Lifted)
+  Tuple(List(Lifted))
+  Compound(t)
+  Dictionary(Lifted)
+  Unsupported
+}
+
+pub type Lifted =
+  Schema(ContentId)
+
+pub type Top =
+  Schema(Fields)
+
+pub type Fields {
+  Fields(
+    named: List(#(String, #(Lifted, Bool))),
+    additional: Option(Lifted),
+    required: List(String),
+  )
+}
+
+/// A unique id from hashing the fields contents of an anonymous object
+pub type ContentId {
+  ContentId(first: String, rest: String)
+}
+
+pub type Primitive {
+  Boolean
+  Integer
+  Number
+  String
+  Null
+  Always
+  Never
+}
+
+// Can totally manually pass in config i.e. encoded/decode or even name
+// pub fn lift(schema) {
+//   do_lift(schema, [])
+// }
+
+// pub type Return {
+//   // Nil because we wouldn't use Compout
+//   Done(Schema(Int))
+//   Name(Fields, fn(Schema(Int)) -> Return)
+// }
+
+// fn recur(schema) -> Return {
+//   case schema {
+//     oas.Ref(ref:, ..) -> Done(Named(ref))
+//     oas.Inline(schema) ->
+//       case schema {
+//         oas.Boolean(..) -> Done(Primitive(Boolean))
+//         oas.Array(items:, ..) ->
+//           case recur(items) {
+//             Done(items) -> Done(Array(items))
+//             Name(inner, f) -> Name(inner, fn(ref) { todo })
+//           }
+//         _ -> todo
+//       }
+//     _ -> todo
+//   }
+// }
+
+// fn then(r, g) {
+//   case r {
+//     Done(schema) -> Done(schema)
+//     Name(fields, f) -> Name(fields, fn(schema) { then(g(schema), f) })
+//   }
+// }
+
+fn pascal_case(id) {
+  let ContentId(first:, rest:) = id
+  string.uppercase(first) <> string.lowercase(rest)
+}
+
+pub fn content_id_to_type(id) {
+  "Anon" <> pascal_case(id)
+}
+
+pub fn content_id_to_fn_prefix(id) {
+  let ContentId(first:, rest:) = id
+  "anon_" <> string.lowercase(first) <> string.lowercase(rest)
+}
+
+fn schema_to_string(schema) {
+  case schema {
+    Compound(id) -> pascal_case(id)
+    Array(items) -> "Array(" <> schema_to_string(items) <> ")"
+    Dictionary(field) -> "Dict(" <> schema_to_string(field) <> ")"
+    Named(name) -> "Named(" <> name <> ")"
+    Primitive(primitive) ->
+      case primitive {
+        Boolean -> "Boolean"
+        Integer -> "Integer"
+        Number -> "Number"
+        String -> "String"
+        Null -> "Null"
+        Always -> "Always"
+        Never -> "Never"
+      }
+    Tuple(inner) ->
+      "Tuple(" <> list.map(inner, schema_to_string) |> string.join(",") <> ")"
+    Unsupported -> "Unsupported"
+  }
+}
+
+fn fields_to_content_id(fields) {
+  let Fields(named:, additional:, required:) = fields
+  let id =
+    list.map(named, fn(named_field) {
+      let #(name, #(schema, nullable)) = named_field
+      name <> schema_to_string(schema) <> bool.to_string(nullable)
+    })
+    |> string.concat
+  let additional = case additional {
+    Some(schema) -> schema_to_string(schema)
+    None -> ""
+  }
+  let required = string.concat(required)
+  let unique = id <> additional <> required
+
+  let hash = crypto.hash(crypto.Sha256, <<unique:utf8>>)
+
+  let raw = bit_array.base16_encode(hash)
+  let first = string.slice(raw, 0, 1)
+  let rest = string.slice(raw, 1, 7)
+  // A capitalied first letter fixes issues with calling to snake case
+  ContentId(first:, rest:)
+}
+
+fn not_top(top: Top, acc) -> #(Lifted, _) {
+  case top {
+    Compound(fields) -> {
+      let id = fields_to_content_id(fields)
+      let acc = [#(id, fields), ..acc]
+
+      #(Compound(id), acc)
+    }
+    Named(name) -> #(Named(name), acc)
+    Primitive(primitive) -> #(Primitive(primitive), acc)
+    Array(items) -> #(Array(items), acc)
+    Tuple(items) -> #(Tuple(items), acc)
+    Dictionary(values) -> #(Dictionary(values), acc)
+    Unsupported -> #(Unsupported, acc)
+  }
+}
+
+// nullable is ignored at the moment
+pub fn do_lift(schema, acc) -> #(Top, Bool, List(_)) {
+  case schema {
+    castor.Ref(ref:, ..) -> #(Named(ref), False, acc)
+    castor.Inline(schema) ->
+      case schema {
+        castor.Boolean(nullable:, ..) -> #(Primitive(Boolean), nullable, acc)
+        castor.Integer(nullable:, ..) -> #(Primitive(Integer), nullable, acc)
+        castor.Number(nullable:, ..) -> #(Primitive(Number), nullable, acc)
+        castor.String(nullable:, ..) -> #(Primitive(String), nullable, acc)
+        castor.Null(..) -> #(Primitive(Null), False, acc)
+        castor.Array(nullable:, items:, ..) -> {
+          let #(top, _, acc) = do_lift(items, acc)
+          let #(schema, acc) = not_top(top, acc)
+          #(Array(schema), nullable, acc)
+        }
+        castor.Object(
+          nullable:,
+          properties:,
+          required:,
+          additional_properties:,
+          ..,
+        ) -> {
+          case dict.is_empty(properties), additional_properties {
+            True, Some(values) -> {
+              let #(top, _, acc) = do_lift(values, acc)
+              let #(schema, acc) = not_top(top, acc)
+              #(Dictionary(schema), nullable, acc)
+            }
+            True, None -> #(Primitive(Null), nullable, acc)
+            _, _ -> {
+              let #(acc, properties) =
+                list.map_fold(
+                  properties |> dict.to_list,
+                  acc,
+                  fn(acc, property) {
+                    let #(field, schema) = property
+                    let #(top, nullable, acc) = do_lift(schema, acc)
+                    let #(schema, acc) = not_top(top, acc)
+
+                    #(acc, #(field, #(schema, nullable)))
+                  },
+                )
+              let #(additional, acc) = case additional_properties {
+                None | Some(castor.Inline(castor.AlwaysFails)) -> #(None, acc)
+                Some(values) -> {
+                  let #(top, _, acc) = do_lift(values, acc)
+                  let #(schema, acc) = not_top(top, acc)
+                  #(Some(schema), acc)
+                }
+              }
+              #(
+                Compound(Fields(properties, additional, required)),
+                nullable,
+                acc,
+              )
+            }
+          }
+        }
+        castor.AllOf(NonEmptyList(schema, [])) -> do_lift(schema, acc)
+        castor.AllOf(items) -> {
+          let #(acc, items) =
+            list.map_fold(items |> non_empty_list.to_list, acc, fn(acc, item) {
+              let #(top, _, acc) = do_lift(item, acc)
+              let #(schema, acc) = not_top(top, acc)
+              #(acc, schema)
+            })
+          #(Tuple(items), False, acc)
+        }
+        castor.AnyOf(NonEmptyList(schema, [])) -> do_lift(schema, acc)
+        castor.OneOf(NonEmptyList(schema, [])) -> do_lift(schema, acc)
+        castor.AnyOf(..) | castor.OneOf(..) -> #(Unsupported, False, acc)
+        // OAS generator doesn't support any validation beyond types
+        castor.Enum(items) -> {
+          let NonEmptyList(first, rest) = items
+          case first {
+            utils.Boolean(_value) ->
+              case all_map(rest, boolean_value) {
+                Ok(_rest) -> #(Primitive(Boolean), False, acc)
+                Error(Nil) -> #(Unsupported, False, acc)
+              }
+            utils.Integer(_value) ->
+              case all_map(rest, integer_value) {
+                Ok(_rest) -> #(Primitive(Integer), False, acc)
+                Error(Nil) -> #(Unsupported, False, acc)
+              }
+            utils.Number(_value) ->
+              case all_map(rest, number_value) {
+                Ok(_rest) -> #(Primitive(Number), False, acc)
+                Error(Nil) -> #(Unsupported, False, acc)
+              }
+            utils.String(_value) ->
+              case all_map(rest, string_value) {
+                Ok(_rest) -> #(Primitive(String), False, acc)
+                Error(Nil) -> #(Unsupported, False, acc)
+              }
+            utils.Null ->
+              case rest {
+                [] -> #(Primitive(Null), False, acc)
+                _ -> #(Unsupported, False, acc)
+              }
+            _ -> #(Unsupported, False, acc)
+          }
+        }
+        castor.AlwaysPasses(..) -> #(Primitive(Always), False, acc)
+        castor.AlwaysFails(..) -> #(Primitive(Never), False, acc)
+      }
+  }
+}
+
+fn all_map(items, func) {
+  do_all_map(items, func, [])
+}
+
+fn do_all_map(items, func, acc) {
+  case items {
+    [] -> Ok(list.reverse(acc))
+    [item, ..rest] ->
+      case func(item) {
+        Ok(mapped) -> do_all_map(rest, func, [mapped, ..acc])
+        Error(reason) -> Error(reason)
+      }
+  }
+}
+
+fn boolean_value(any) {
+  case any {
+    utils.Boolean(value) -> Ok(value)
+    _ -> Error(Nil)
+  }
+}
+
+fn integer_value(any) {
+  case any {
+    utils.Integer(value) -> Ok(value)
+    _ -> Error(Nil)
+  }
+}
+
+fn number_value(any) {
+  case any {
+    utils.Number(value) -> Ok(value)
+    _ -> Error(Nil)
+  }
+}
+
+fn string_value(any) {
+  case any {
+    utils.String(value) -> Ok(value)
+    _ -> Error(Nil)
+  }
+}
