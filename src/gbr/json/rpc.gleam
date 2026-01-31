@@ -117,13 +117,13 @@ pub fn result(id: Id, result: a) -> Response(a) {
 ///
 /// - request_decoders: List of any req decoders.
 /// - notification_decoders: List of any notify decoders.
-/// - zero: The result generic type
+/// - zero: Initial notifiication instance.
 ///
 pub fn request_decoder(
-  request_decoders: List(#(String, decode.Decoder(a))),
-  notification_decoders: List(#(String, decode.Decoder(a))),
-  zero: a,
-) -> decode.Decoder(Request(a, a)) {
+  request_decoders: List(#(String, decode.Decoder(r))),
+  notification_decoders: List(#(String, decode.Decoder(n))),
+  zero: n,
+) -> decode.Decoder(Request(r, n)) {
   use version <- decode.field("jsonrpc", decode.string)
   use id <- u.optional_field("id", id_decoder())
   use method <- decode.field("method", decode.string)
