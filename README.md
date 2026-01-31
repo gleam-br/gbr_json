@@ -3,13 +3,15 @@
 
 # 📃 JSON & JSON Schema
 
-JSON Schema library to load into AST and gen gleam code with definition types.
+JSON Schema library to load into AST and gen gleam code definition types.
+> and JSON helper functions
 
 ## Roadmap
 
 - [ ] Update dep `glance` from 3.x to 6.x
   - [ ] Fix `glance_printer` to work with `6.x`
 - [ ] Update json schema to https://json-schema.org/draft/2020-12/schema
+  - [ ] Parser error
 
 ## Running
 
