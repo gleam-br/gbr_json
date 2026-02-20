@@ -1,7 +1,7 @@
 [![Package Version](https://img.shields.io/hexpm/v/gbr_json)](https://hex.pm/packages/gbr_json)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/gbr_json/)
 
-# 📃 JSON & JSON Schema
+# 📃 JSON/JSON-RPC/JSON-Schema
 
 JSON Schema library to load into AST and gen gleam code definition types.
 > and JSON helper functions
