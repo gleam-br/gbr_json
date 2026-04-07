@@ -1,7 +1,3 @@
-////
-//// JSON schema types and helper functions
-////
-
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
@@ -157,9 +153,9 @@ pub fn do_to_encode_fn(name, type_, top) {
   }
 
   glance.Function(
-    name: encode_fn(name),
-    publicity: glance.Public,
-    parameters: [
+    encode_fn(name),
+    glance.Public,
+    [
       glance.FunctionParameter(
         None,
         assignment,
@@ -167,9 +163,9 @@ pub fn do_to_encode_fn(name, type_, top) {
         Some(glance.NamedType(type_, None, [])),
       ),
     ],
-    return: None,
-    body: [glance.Expression(exp)],
-    location: glance.Span(0, 0),
+    None,
+    [glance.Expression(exp)],
+    glance.Span(0, 0),
   )
   |> l.Done
 }
@@ -304,14 +300,7 @@ pub fn to_decode_fn(entry) {
   let #(name, top) = entry
 
   use body <- l.then(gen_top_decoder_needs_name(name, top))
-  glance.Function(
-    name: decoder(name),
-    publicity: glance.Public,
-    parameters: [],
-    return: None,
-    body:,
-    location: glance.Span(0, 0),
-  )
+  glance.Function(decoder(name), glance.Public, [], None, body, glance.Span(0, 0))
   |> l.Done
 }
 

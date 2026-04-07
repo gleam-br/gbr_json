@@ -1,7 +1,3 @@
-////
-////
-////
-
 import gleam/list
 import gleam/option.{None}
 import gleam/string
@@ -80,8 +76,6 @@ fn replace_disallowed_charachters(in) {
   in
   |> string.replace("/", "_")
   |> string.replace("+", "_")
-  // this is part of kebab casing
-  // |> string.replace("-", "Minus")
   |> string.replace("^", "")
   |> string.replace("$", "")
 }
@@ -120,7 +114,6 @@ pub fn name_for_gleam_type(in) {
 pub fn name_for_gleam_field_or_var(in) {
   in
   |> prefix_signs
-  // calling snake case might remove a leading `_` and expose numbers
   |> justin.snake_case()
   |> prefix_numbers
   |> replace_disallowed_charachters

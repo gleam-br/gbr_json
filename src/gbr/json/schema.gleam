@@ -1,15 +1,3 @@
-////
-//// 🧙 Magic convert json schema to gleam code
-////
-//// Provides a JSON-based format to annotate, validate, and structure JSON documents.
-//// It defines keywords to constrain data types (e.g., type, properties, items),
-//// ensuring data consistency and interoperability across systems.
-////
-//// The specification is maintained by the [JSON Schema Organization](https://json-schema.org/).
-////
-//// > Thanks to crowdhailer :heart:
-////
-
 import gleam/dict
 import gleam/dynamic/decode
 import gleam/json
