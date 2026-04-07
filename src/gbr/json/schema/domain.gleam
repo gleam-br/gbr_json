@@ -8,7 +8,7 @@ import gleam/option.{type Option, None, Some}
 
 import non_empty_list.{type NonEmptyList}
 
-import gbr/shared/utils
+import gbr/json/schema/utils
 
 /// Node in the Specification that might be represented by a reference.
 pub type Ref(t) {

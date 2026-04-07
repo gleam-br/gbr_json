@@ -13,7 +13,7 @@ import gleam/string
 import non_empty_list.{NonEmptyList}
 
 import gbr/json/schema/domain as castor
-import gbr/shared/utils
+import gbr/json/schema/utils
 
 pub type Schema(t) {
   Named(String)

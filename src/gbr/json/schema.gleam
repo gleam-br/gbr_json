@@ -25,9 +25,9 @@ import glance_printer
 import justin
 import non_empty_list.{NonEmptyList}
 
-import gbr/shared/error as e
-import gbr/shared/lookup as l
-import gbr/shared/utils as u
+import gbr/json/schema/error as e
+import gbr/json/schema/lookup as l
+import gbr/json/schema/utils as u
 
 import gbr/json/schema/ast
 import gbr/json/schema/lift

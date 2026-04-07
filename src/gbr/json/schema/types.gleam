@@ -10,7 +10,7 @@ import glance
 
 import gbr/json/schema/ast
 import gbr/json/schema/lift
-import gbr/shared/lookup as l
+import gbr/json/schema/lookup as l
 
 /// Generate a custom type from an object type.
 ///

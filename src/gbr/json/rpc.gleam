@@ -9,8 +9,8 @@ import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 
-import gbr/shared/error as e
-import gbr/shared/utils as u
+import gbr/json/schema/error as e
+import gbr/json/schema/utils as u
 
 /// JSON-RPC spec version
 ///

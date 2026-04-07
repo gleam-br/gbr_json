@@ -10,7 +10,7 @@ import gleam/dynamic/decode
 import gleam/list
 import gleam/string
 
-import gbr/shared/utils as u
+import gbr/json/schema/utils as u
 
 /// Any error to method not avaiable.
 ///
