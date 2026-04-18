@@ -83,7 +83,7 @@ pub fn id_to_string(id: Id) -> String {
 /// - id: Identification type request.
 /// - value: Value from request.
 ///
-pub fn request(id: Id, value: a) -> Request(a, b) {
+pub fn request(id: Id, value: body) -> Request(body, _reply) {
   Request(version: jsonrpc, id:, value:)
 }
 
@@ -91,7 +91,7 @@ pub fn request(id: Id, value: a) -> Request(a, b) {
 ///
 /// - value: Value from request
 ///
-pub fn notification(value: a) -> Request(b, a) {
+pub fn notification(value: reply) -> Request(_body, reply) {
   Notification(version: jsonrpc, value:)
 }
 
@@ -258,4 +258,11 @@ pub fn response_encode(
       Error(obj) -> #("error", e.to_json(obj))
     },
   ])
+}
+
+pub fn response_unwrap(response: Response(a)) -> Result(a, json.Json) {
+  case response.return {
+    Ok(value) -> Ok(value)
+    Error(err) -> Error(e.to_json(err))
+  }
 }
